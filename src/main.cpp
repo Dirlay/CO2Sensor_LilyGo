@@ -156,6 +156,7 @@ void loop()
     if (buttonState_A) buttonFunctionA();    // button A is LOW
     if (buttonState_B) buttonFunctionB();    // button B is LOW
 
+    // read co2 sensor and calculate corresponding points for histogram
     if (currentMillis > timerCO2 + co2_measurement_delay && sensorCO2.getMeasurementStatus()) {
         sensorCO2.getMeasurement(&co2, &temp, &humd);
         if (co2 < 400) {
@@ -167,6 +168,7 @@ void loop()
         else {
             co2Histogram[0] = (co2 - 400) * 0.08;
         }
+        // this will draw the next point on co2 histogram
         if (co2_readingInterval > 15) {
             for (int i = 320 - 1; i > 0; i--) {
                 co2Histogram[i] = co2Histogram[i - 1];
@@ -184,20 +186,24 @@ void loop()
     Serial.print(" ");
     Serial.println(brightnessTFT);
 
+    // read real time clock data
     if (currentMillis > timerRTC + 1000) {
         now = rtc.now();
         timerRTC = currentMillis;
     }
+
     displaySprite();
 }
 
 void displaySprite()
 {
+    // background image
     background.createSprite(320, 170);
     background.setSwapBytes(true);
     background.pushImage(0, 0, 320, 170, (uint16_t *)img_logo);
     background.setSwapBytes(false);
 
+    // frames-per-second counter
     fps.createSprite(2 * 14, 19);
     fps.fillSprite(TFT_MAGENTA);
     fps.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -207,6 +213,7 @@ void displaySprite()
     fps.pushToSprite(&background, 2, 2, TFT_MAGENTA);
     fps.deleteSprite();
     
+    // real time clock
     rtctime.createSprite(6 * 14 + 2 * 7, 19);
     rtctime.fillSprite(TFT_MAGENTA);
     rtctime.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -216,6 +223,7 @@ void displaySprite()
     rtctime.pushToSprite(&background, 220, 2, TFT_MAGENTA);
     rtctime.deleteSprite();
 
+    // temperature indicator in celsius
     temperature.createSprite(3 * 14 + 7, 19);
     temperature.fillSprite(TFT_MAGENTA);
     temperature.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -224,6 +232,7 @@ void displaySprite()
     temperature.pushToSprite(&background, 2, 148, TFT_MAGENTA);
     temperature.deleteSprite();
 
+    // humidity indicator
     humidity.createSprite(3 * 14 + 7, 19);
     humidity.fillSprite(TFT_MAGENTA);
     humidity.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -232,6 +241,7 @@ void displaySprite()
     humidity.pushToSprite(&background, 270, 148, TFT_MAGENTA);
     humidity.deleteSprite();
 
+    // histogram showing co2 consistency over time (currently over 7 hours)
     histogram.createSprite(170, 127);
     histogram.fillSprite(TFT_MAGENTA);
     // draw line for CO2 level histogram
@@ -239,7 +249,7 @@ void displaySprite()
         if (co2Histogram[i] < 128) {
             int j = 0;
             if (co2Histogram[i - 1] != co2Histogram[i]) {
-                // return -1 or +1 depending on difference
+                // return -1 or +1 depending on difference between last two points
                 j = (co2Histogram[i - 1] - co2Histogram[i]) / std::abs(co2Histogram[i - 1] - co2Histogram[i]);
             }
             histogram.drawLine(i, 127 - co2Histogram[i - 1] + j , i, 127 - co2Histogram[i], TFT_LIGHTGREY);
@@ -249,6 +259,7 @@ void displaySprite()
     histogram.pushToSprite(&background, 0, 22, TFT_MAGENTA);
     histogram.deleteSprite();
 
+    // carbondioxyd indicator
     co2value.createSprite(4 * 55, 76);
     co2value.fillSprite(TFT_MAGENTA);
     co2value.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -257,6 +268,7 @@ void displaySprite()
     co2value.pushToSprite(&background, 50, 40, TFT_MAGENTA);
     co2value.deleteSprite();
 
+    // write parts per million abbreviation next to co2 indicator
     ppmtext.createSprite(18, 7);
     ppmtext.fillSprite(TFT_MAGENTA);
     ppmtext.setTextColor(TFT_WHITE, TFT_MAGENTA);
@@ -272,6 +284,7 @@ void displaySprite()
 void buttonFunctionA() {
   // when button is pressed, do stuff
   if (buttonA_pressed == 1) {
+    // increase TFT screen brightness
     if (brightnessTFT < 8) {
         brightnessTFT++;
         ledcWrite(TFT_CHANNEL, TFT_DUTYCYCLE[brightnessTFT]);
@@ -283,6 +296,7 @@ void buttonFunctionA() {
 void buttonFunctionB() {
   // when button is pressed, do stuff
   if (buttonB_pressed == 1) {
+    // decrease TFT screen brightness
     if (brightnessTFT > 0) {
         brightnessTFT--;
         ledcWrite(TFT_CHANNEL, TFT_DUTYCYCLE[brightnessTFT]);

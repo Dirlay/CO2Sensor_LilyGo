@@ -39,10 +39,10 @@ DateTime now;
 char daysOfTheWeek[7][3] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
 
 // variables for controlling button functions
-bool buttonState_A, buttonState_B;       // Pulled-Up: pressing = HIGH, not pressing = LOW
-bool previousButton_A, previousButton_B;    // compare with new button state
-bool buttonA_pressed, buttonB_pressed;
-unsigned long debounceButton_A, debounceButton_B; // debouncing buttons
+bool buttonA, buttonB;                  // Pulled-Up: pressed = LOW, released = HIGH
+bool buttonPreviousA, buttonPreviousB;  // compare with new button state
+byte buttonStateA, buttonStateB;        // 0 == stand-by, 1 == released, 2 == pressed
+unsigned long buttonDebounceA, buttonDebounceB; // debouncing buttons
 
 unsigned long currentMillis = 0, previousMillis = 0; // timer variable
 unsigned long timerCO2 = 0, timerRTC = 0;
@@ -53,17 +53,17 @@ void displaySprite();
 void buttonFunctionA();
 void buttonFunctionB();
 
-void pressingButtonA(void) {
-  if (currentMillis - debounceButton_A >= 135) {
-    buttonA_pressed = 1;
-    debounceButton_A = currentMillis;
+void buttonPressA(void) {
+  if (buttonStateA == 0 && currentMillis - buttonDebounceA >= 75) {
+    buttonStateA = 2;
+    buttonDebounceA = currentMillis;
   }
 }
 
-void pressingButtonB(void) {
-  if (currentMillis - debounceButton_B >= 135) {
-    buttonB_pressed = 1;
-    debounceButton_B = currentMillis;
+void buttonPressB(void) {
+  if (buttonStateB == 0 && currentMillis - buttonDebounceB >= 75) {
+    buttonStateB = 2;
+    buttonDebounceB = currentMillis;
   }
 }
 
@@ -75,8 +75,8 @@ void setup()
     pinMode(PIN_BUTTON_1, INPUT);
     pinMode(PIN_BUTTON_2, INPUT);
 
-    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_1), pressingButtonA, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_2), pressingButtonB, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_1), buttonPressA, FALLING);
+    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_2), buttonPressB, FALLING);
 
     tft.begin(); delay(200);
     tft.setRotation(3);
@@ -151,10 +151,10 @@ void loop()
     currentMillis = millis();
 
     // call button functionality
-    buttonState_A = digitalRead(PIN_BUTTON_1);
-    buttonState_B = digitalRead(PIN_BUTTON_2);
-    if (buttonState_A) buttonFunctionA();    // button A is LOW
-    if (buttonState_B) buttonFunctionB();    // button B is LOW
+    buttonA = digitalRead(PIN_BUTTON_1);  // button A pressed == LOW
+    buttonB = digitalRead(PIN_BUTTON_2);  // button B pressed == LOW
+    buttonFunctionA();    
+    buttonFunctionB();
 
     // read co2 sensor and calculate corresponding points for histogram
     if (currentMillis > timerCO2 + co2_measurement_delay && sensorCO2.getMeasurementStatus()) {
@@ -180,11 +180,10 @@ void loop()
         timerCO2 = currentMillis;
     }
 
-    Serial.print(digitalRead(PIN_BUTTON_1));
-    Serial.print(" ");
-    Serial.print(digitalRead(PIN_BUTTON_2));
-    Serial.print(" ");
-    Serial.println(brightnessTFT);
+    // Serial.print(buttonA);
+    // Serial.print(" ");
+    // Serial.print(buttonB);
+    // Serial.println();
 
     // read real time clock data
     if (currentMillis > timerRTC + 1000) {
@@ -282,25 +281,37 @@ void displaySprite()
 }
 
 void buttonFunctionA() {
-  // when button is pressed, do stuff
-  if (buttonA_pressed == 1) {
+  // when button is pressed, do stuff once
+  if (buttonStateA == 2) {
+    Serial.println(buttonStateA);
     // increase TFT screen brightness
     if (brightnessTFT < 8) {
         brightnessTFT++;
         ledcWrite(TFT_CHANNEL, TFT_DUTYCYCLE[brightnessTFT]);
     }
-    buttonA_pressed = 0;    // prevent button spam
+    buttonStateA = 1;    // prevent button spam
+  }
+  // when button is released, do stuff once
+  else if (buttonA == HIGH && buttonStateA == 1) {
+    Serial.println(buttonStateA);
+    buttonStateA = 0;    // prevent button spam
   }
 }
 
 void buttonFunctionB() {
-  // when button is pressed, do stuff
-  if (buttonB_pressed == 1) {
+  // when button is pressed, do stuff once
+  if (buttonStateB == 2) {
+    Serial.println(buttonStateB);
     // decrease TFT screen brightness
     if (brightnessTFT > 0) {
         brightnessTFT--;
         ledcWrite(TFT_CHANNEL, TFT_DUTYCYCLE[brightnessTFT]);
     }
-    buttonB_pressed = 0;    // prevent button spam
+    buttonStateB = 1;    // prevent button spam
+  }
+  // when button is released, do stuff once
+  else if (buttonB == HIGH && buttonStateB == 1) {
+    Serial.println(buttonStateB);
+    buttonStateB = 0;    // prevent button spam
   }
 }
